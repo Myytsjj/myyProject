@@ -13,6 +13,8 @@ pub fn generate_site(Array[(String, String)], String, String, String, String, Co
 
 pub fn parse_front_matter(String) -> (BlogPostMetadata, String)
 
+pub fn slugify_path(String) -> String
+
 // Errors
 
 // Types and methods

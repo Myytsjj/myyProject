@@ -37,7 +37,11 @@ pub fn to_events(blocks : Array[Block]) -> Array[Event] {
       CodeBlock(info, content) => {
         events.push(Event::StartBlock("pre"))
         if info != "" {
-          events.push(Event::StartBlock("code class=\"language-" + info + "\""))
+          events.push(
+            Event::StartBlock(
+              "code class=\"language-" + escape_html_attr(info) + "\"",
+            ),
+          )
         } else {
           events.push(Event::StartBlock("code"))
         }
@@ -98,9 +102,9 @@ fn inline_to_events(inline : Inline, events : Array[Event]) -> Unit {
       events.push(Event::EndInline("strong"))
     }
     Link(url, title, content) => {
-      let mut tag = "a href=\"" + url + "\""
+      let mut tag = "a href=\"" + sanitize_url(url) + "\""
       if title != "" {
-        tag += " title=\"" + title + "\""
+        tag += " title=\"" + escape_html_attr(title) + "\""
       }
       events.push(Event::StartInline(tag))
       for child in content {
@@ -109,9 +113,13 @@ fn inline_to_events(inline : Inline, events : Array[Event]) -> Unit {
       events.push(Event::EndInline("a"))
     }
     Image(url, title, alt) => {
-      let mut tag = "img src=\"" + url + "\" alt=\"" + alt + "\""
+      let mut tag = "img src=\"" +
+        sanitize_url(url) +
+        "\" alt=\"" +
+        escape_html_attr(alt) +
+        "\""
       if title != "" {
-        tag += " title=\"" + title + "\""
+        tag += " title=\"" + escape_html_attr(title) + "\""
       }
       events.push(Event::SelfClosing(tag))
     }
@@ -164,4 +172,47 @@ fn escape_html(text : String) -> String {
     }
   }
   res
+}
+
+///|
+fn escape_html_attr(text : String) -> String {
+  let mut res = ""
+  for i = 0; i < text.length(); i = i + 1 {
+    match char_at(text, i) {
+      '<' => res += "&lt;"
+      '>' => res += "&gt;"
+      '&' => res += "&amp;"
+      '"' => res += "&quot;"
+      '\'' => res += "&#39;"
+      c => res += c.to_string()
+    }
+  }
+  res
+}
+
+///|
+fn to_ascii_lower(text : String) -> String {
+  let mut res = ""
+  for i = 0; i < text.length(); i = i + 1 {
+    let ch = text[i]
+    if ch >= 'A' && ch <= 'Z' {
+      res += (ch.to_int() + 32).unsafe_to_char().to_string()
+    } else {
+      res += char_at(text, i).to_string()
+    }
+  }
+  res
+}
+
+///|
+fn sanitize_url(url : String) -> String {
+  let trimmed = url.trim().to_owned()
+  let lower = to_ascii_lower(trimmed)
+  if lower.has_prefix("javascript:") ||
+    lower.has_prefix("vbscript:") ||
+    lower.has_prefix("data:") {
+    "#unsafe-url"
+  } else {
+    escape_html_attr(trimmed)
+  }
 }

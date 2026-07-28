@@ -96,9 +96,10 @@ test "generate site with taxonomy pagination RSS search" {
   // - category-Programming.html
   // - rss.xml
   // - search.json
-  // Total: 9 pages
-  if pages.length() != 9 {
-    abort("expected 9 pages generated, got " + pages.length().to_string())
+  // - sitemap.xml
+  // Total: 10 pages
+  if pages.length() != 10 {
+    abort("expected 10 pages generated, got " + pages.length().to_string())
   }
 
   // Verify pagination page names
@@ -117,7 +118,7 @@ test "generate site with taxonomy pagination RSS search" {
       found_rss = true
     } else if page.path == "search.json" {
       found_search = true
-    } else if page.path == "tag-Wasm.html" {
+    } else if page.path == "tag-wasm.html" {
       found_tag_wasm = true
     }
   }
@@ -132,7 +133,7 @@ test "generate site with taxonomy pagination RSS search" {
     abort("missing search.json")
   }
   if !found_tag_wasm {
-    abort("missing tag-Wasm.html")
+    abort("missing tag-wasm.html")
   }
 
   // 2. Generate with drafts

@@ -1,4 +1,4 @@
-name: Test
+name: Check and Test
 
 on:
   push:
@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Moon env (Linux & macOS)
         if: runner.os != 'Windows'
@@ -38,15 +40,26 @@ jobs:
           moon version --all
           moon update
 
-      - name: Moon Check & Build
+      - name: Moon format
         run: |
           moon fmt --check
+
+      - name: Moon check
+        run: |
+          moon check --target all
           moon check --deny-warn
+
+      - name: Moon build
+        run: |
           moon build
+
+      - name: Moon test
+        run: |
+          moon test --target all
+          moon test --deny-warn
+
+      - name: Moon info
+        run: |
           moon info
           git diff --exit-code
           git status
-
-      - name: Moon Test
-        run: |
-          moon test --deny-warn

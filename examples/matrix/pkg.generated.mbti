@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Myytsjj/moon-ssg/src/main"
+package "Myytsjj/moon-ssg/examples/matrix"
 
 import {
   "moonbitlang/core/debug",
@@ -10,7 +10,7 @@ import {
 // Errors
 
 // Types and methods
-type CliOptions derive(Eq, @debug.Debug)
+type Scenario derive(Eq, @debug.Debug)
 
 // Type aliases
 

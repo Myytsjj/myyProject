@@ -198,15 +198,17 @@ pub fn parse_front_matter(source : String) -> (BlogPostMetadata, String) {
                 categories = vals
               }
             }
-          } else {
             // Regular key-value
-            if key == "title" {
-              title = val
-            } else if key == "date" {
-              date = val
-            } else if key == "draft" {
-              draft = val == "true"
-            }
+          } else if key == "title" {
+            title = val
+          } else if key == "date" {
+            date = val
+          } else if key == "draft" {
+            draft = val == "true"
+          } else if val == "" {
+            current_list_key = key
+            current_list_vals = []
+          } else {
             raw.set(key, val)
           }
         } else {
@@ -268,7 +270,8 @@ pub fn generate_site(
 
     // Render the post page using the layout template
     let rendered_html = render_post(post, layout)
-    let out_filename = filename.replace(old=".md", new=".html")
+    let out_filename = slugify_path(filename.replace(old=".md", new="")) +
+      ".html"
 
     pages.push({ path: out_filename, html: rendered_html })
   }
@@ -298,14 +301,18 @@ pub fn generate_site(
   let search_json = generate_search_json(posts)
   pages.push({ path: "search.json", html: search_json })
 
+  // 6. Generate sitemap
+  let sitemap_xml = generate_sitemap(pages, config)
+  pages.push({ path: "sitemap.xml", html: sitemap_xml })
+
   pages
 }
 
 ///|
 fn render_post(post : BlogPost, template : String) -> String {
   let mut res = template
-  res = res.replace_all(old="{{title}}", new=post.title)
-  res = res.replace_all(old="{{date}}", new=post.date)
+  res = res.replace_all(old="{{title}}", new=escape_html_text(post.title))
+  res = res.replace_all(old="{{date}}", new=escape_html_text(post.date))
   res = res.replace_all(old="{{content}}", new=post.content_html)
 
   // Render tags list in post
@@ -316,7 +323,11 @@ fn render_post(post : BlogPost, template : String) -> String {
       if idx > 0 {
         tags_html += ", "
       }
-      tags_html += "<a href=\"tag-" + tag + ".html\">" + tag + "</a>"
+      tags_html += "<a href=\"tag-" +
+        slugify_path(tag) +
+        ".html\">" +
+        escape_html_text(tag) +
+        "</a>"
     }
     tags_html += "</div>"
   }
@@ -330,7 +341,11 @@ fn render_post(post : BlogPost, template : String) -> String {
       if idx > 0 {
         cats_html += ", "
       }
-      cats_html += "<a href=\"category-" + cat + ".html\">" + cat + "</a>"
+      cats_html += "<a href=\"category-" +
+        slugify_path(cat) +
+        ".html\">" +
+        escape_html_text(cat) +
+        "</a>"
     }
     cats_html += "</div>"
   }
@@ -364,13 +379,14 @@ fn generate_paginated_index(
     let mut list_html = "<ul>\n"
     for i = start; i < end; i = i + 1 {
       let post = posts[i]
-      let link = post.filename.replace_all(old=".md", new=".html")
+      let link = slugify_path(post.filename.replace_all(old=".md", new="")) +
+        ".html"
       list_html += "  <li><span class=\"date\">" +
-        post.date +
+        escape_html_text(post.date) +
         "</span> - <a href=\"" +
         link +
         "\">" +
-        post.title +
+        escape_html_text(post.title) +
         "</a>"
       if post.tags.length() > 0 {
         list_html += " <span class=\"tags\">("
@@ -378,7 +394,11 @@ fn generate_paginated_index(
           if j > 0 {
             list_html += ", "
           }
-          list_html += "<a href=\"tag-" + t + ".html\">" + t + "</a>"
+          list_html += "<a href=\"tag-" +
+            slugify_path(t) +
+            ".html\">" +
+            escape_html_text(t) +
+            "</a>"
         }
         list_html += ")</span>"
       }
@@ -408,7 +428,10 @@ fn generate_paginated_index(
     pagination_html += "</div>"
 
     let mut res = template
-    res = res.replace_all(old="{{title}}", new=config.site_title)
+    res = res.replace_all(
+      old="{{title}}",
+      new=escape_html_text(config.site_title),
+    )
     res = res.replace_all(old="{{posts}}", new=list_html)
     res = res.replace_all(old="{{pagination}}", new=pagination_html)
 
@@ -452,44 +475,46 @@ fn generate_taxonomy_pages(
   for tag, tposts in tag_map {
     let mut list_html = "<ul>\n"
     for post in tposts {
-      let link = post.filename.replace_all(old=".md", new=".html")
+      let link = slugify_path(post.filename.replace_all(old=".md", new="")) +
+        ".html"
       list_html += "  <li><span class=\"date\">" +
-        post.date +
+        escape_html_text(post.date) +
         "</span> - <a href=\"" +
         link +
         "\">" +
-        post.title +
+        escape_html_text(post.title) +
         "</a></li>\n"
     }
     list_html += "</ul>"
 
     let mut res = tag_layout
-    res = res.replace_all(old="{{tag}}", new=tag)
+    res = res.replace_all(old="{{tag}}", new=escape_html_text(tag))
     res = res.replace_all(old="{{posts}}", new=list_html)
 
-    pages.push({ path: "tag-" + tag + ".html", html: res })
+    pages.push({ path: "tag-" + slugify_path(tag) + ".html", html: res })
   }
 
   // Generate category pages
   for cat, cposts in cat_map {
     let mut list_html = "<ul>\n"
     for post in cposts {
-      let link = post.filename.replace_all(old=".md", new=".html")
+      let link = slugify_path(post.filename.replace_all(old=".md", new="")) +
+        ".html"
       list_html += "  <li><span class=\"date\">" +
-        post.date +
+        escape_html_text(post.date) +
         "</span> - <a href=\"" +
         link +
         "\">" +
-        post.title +
+        escape_html_text(post.title) +
         "</a></li>\n"
     }
     list_html += "</ul>"
 
     let mut res = category_layout
-    res = res.replace_all(old="{{category}}", new=cat)
+    res = res.replace_all(old="{{category}}", new=escape_html_text(cat))
     res = res.replace_all(old="{{posts}}", new=list_html)
 
-    pages.push({ path: "category-" + cat + ".html", html: res })
+    pages.push({ path: "category-" + slugify_path(cat) + ".html", html: res })
   }
 
   pages
@@ -512,7 +537,8 @@ fn generate_rss(posts : Array[BlogPost], config : Config) -> String {
     let post = posts[i]
     let link = config.site_url +
       "/" +
-      post.filename.replace(old=".md", new=".html")
+      slugify_path(post.filename.replace(old=".md", new="")) +
+      ".html"
     xml += "  <item>\n"
     xml += "    <title>" + escape_xml(post.title) + "</title>\n"
     xml += "    <link>" + escape_xml(link) + "</link>\n"
@@ -541,7 +567,9 @@ fn generate_search_json(posts : Array[BlogPost]) -> String {
     let mut item = "  {\n"
     item += "    \"title\": \"" + escape_json_str(post.title) + "\",\n"
     item += "    \"url\": \"" +
-      escape_json_str(post.filename.replace(old=".md", new=".html")) +
+      escape_json_str(
+        slugify_path(post.filename.replace(old=".md", new="")) + ".html",
+      ) +
       "\",\n"
     item += "    \"date\": \"" + escape_json_str(post.date) + "\",\n"
     item += "    \"snippet\": \"" + escape_json_str(snippet) + "\"\n"
@@ -558,6 +586,74 @@ fn generate_search_json(posts : Array[BlogPost]) -> String {
   }
   json += "\n]"
   json
+}
+
+///|
+fn generate_sitemap(pages : Array[GeneratedPage], config : Config) -> String {
+  let mut xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+  xml += "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
+  for page in pages {
+    if page.path.has_suffix(".html") {
+      xml += "  <url><loc>" +
+        escape_xml(join_url(config.site_url, page.path)) +
+        "</loc></url>\n"
+    }
+  }
+  xml += "</urlset>\n"
+  xml
+}
+
+///|
+fn join_url(base : String, path : String) -> String {
+  if base.has_suffix("/") {
+    base + path
+  } else {
+    base + "/" + path
+  }
+}
+
+///|
+pub fn slugify_path(text : String) -> String {
+  let mut slug = ""
+  let mut last_was_dash = false
+  for i = 0; i < text.length(); i = i + 1 {
+    let ch = text[i]
+    if (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') {
+      slug += ch.to_int().unsafe_to_char().to_string()
+      last_was_dash = false
+    } else if ch >= 'A' && ch <= 'Z' {
+      slug += (ch.to_int() + 32).unsafe_to_char().to_string()
+      last_was_dash = false
+    } else if !last_was_dash && slug != "" {
+      slug += "-"
+      last_was_dash = true
+    }
+  }
+  while slug.has_suffix("-") {
+    slug = slug[0:slug.length() - 1].to_owned()
+  }
+  if slug == "" {
+    "untitled"
+  } else {
+    slug
+  }
+}
+
+///|
+fn escape_html_text(text : String) -> String {
+  let mut res = ""
+  for i = 0; i < text.length(); i = i + 1 {
+    let char_str = text[i:i + 1].to_owned()
+    match char_str {
+      "<" => res += "&lt;"
+      ">" => res += "&gt;"
+      "&" => res += "&amp;"
+      "\"" => res += "&quot;"
+      "'" => res += "&#39;"
+      _ => res += char_str
+    }
+  }
+  res
 }
 
 ///|

@@ -46,10 +46,25 @@ fn parse_inline_view(text : StringView) -> Array[Inline] {
       }
       if j < len && char_at(text, j) == '(' {
         let mut k = j + 1
+        let mut paren_level = 0
         let mut url_and_title = ""
-        while k < len && char_at(text, k) != ')' {
-          url_and_title += char_at(text, k).to_string()
-          k += 1
+        while k < len {
+          let ch = char_at(text, k)
+          if ch == '(' {
+            paren_level += 1
+            url_and_title += ch.to_string()
+            k += 1
+          } else if ch == ')' {
+            if paren_level == 0 {
+              break
+            }
+            paren_level -= 1
+            url_and_title += ch.to_string()
+            k += 1
+          } else {
+            url_and_title += ch.to_string()
+            k += 1
+          }
         }
         if k < len && char_at(text, k) == ')' {
           commit_text()
@@ -97,10 +112,25 @@ fn parse_inline_view(text : StringView) -> Array[Inline] {
       }
       if j < len && char_at(text, j) == '(' {
         let mut k = j + 1
+        let mut paren_level = 0
         let mut url_and_title = ""
-        while k < len && char_at(text, k) != ')' {
-          url_and_title += char_at(text, k).to_string()
-          k += 1
+        while k < len {
+          let ch = char_at(text, k)
+          if ch == '(' {
+            paren_level += 1
+            url_and_title += ch.to_string()
+            k += 1
+          } else if ch == ')' {
+            if paren_level == 0 {
+              break
+            }
+            paren_level -= 1
+            url_and_title += ch.to_string()
+            k += 1
+          } else {
+            url_and_title += ch.to_string()
+            k += 1
+          }
         }
         if k < len && char_at(text, k) == ')' {
           commit_text()
@@ -150,6 +180,10 @@ fn parse_inline_view(text : StringView) -> Array[Inline] {
         let bold_inlines = parse_inline_view(bold_content.to_string_view())
         result.push(Inline::Strong(bold_inlines))
         i = j + 2
+        continue
+      } else {
+        current_text += marker.to_owned()
+        i += 2
         continue
       }
     }

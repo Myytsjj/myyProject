@@ -1,16 +1,11 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Myytsjj/moon-ssg/src/main"
-
-import {
-  "moonbitlang/core/debug",
-}
+package "Myytsjj/moon-ssg/examples/showcase"
 
 // Values
 
 // Errors
 
 // Types and methods
-type CliOptions derive(Eq, @debug.Debug)
 
 // Type aliases
 

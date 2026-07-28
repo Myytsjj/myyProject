@@ -1,55 +1,266 @@
 // Main entry point for moon-ssg CLI tool
 
 ///|
-fn main {
-  let default_config_path = "ssg.config.json"
-  let args = @env.args()
+struct CliOptions {
+  config_path : String
+  include_drafts : Bool
+  show_help : Bool
+  show_version : Bool
+  content_dir : String?
+  layouts_dir : String?
+  public_dir : String?
+  static_dir : String?
+  site_url : String?
+  error_message : String?
+} derive(Debug, Eq)
 
-  let mut config_path = default_config_path
-  let mut include_drafts = false
+///|
+fn CliOptions::default() -> CliOptions {
+  {
+    config_path: "ssg.config.json",
+    include_drafts: false,
+    show_help: false,
+    show_version: false,
+    content_dir: None,
+    layouts_dir: None,
+    public_dir: None,
+    static_dir: None,
+    site_url: None,
+    error_message: None,
+  }
+}
 
+///|
+fn parse_cli_args(args : Array[String]) -> CliOptions {
+  let mut opts = CliOptions::default()
   let mut i = 0
   while i < args.length() {
     let arg = args[i]
-    if arg == "--drafts" || arg == "-d" {
-      include_drafts = true
+    if arg == "--help" || arg == "-h" {
+      opts = { ..opts, show_help: true }
+      i += 1
+    } else if arg == "--version" || arg == "-V" {
+      opts = { ..opts, show_version: true }
+      i += 1
+    } else if arg == "--drafts" || arg == "-d" {
+      opts = { ..opts, include_drafts: true }
       i += 1
     } else if arg == "--config" || arg == "-c" {
-      if i + 1 < args.length() {
-        config_path = args[i + 1]
-        i += 2
-      } else {
-        println("Error: --config requires a path parameter")
-        return
+      match read_cli_value(args, i, "--config") {
+        Some(value) => {
+          opts = { ..opts, config_path: value }
+          i += 2
+        }
+        None => {
+          opts = {
+            ..opts,
+            error_message: Some("--config requires a path parameter"),
+          }
+          i = args.length()
+        }
       }
     } else if arg.has_prefix("--config=") {
-      config_path = arg[9:].to_owned()
+      opts = { ..opts, config_path: arg[9:].to_owned() }
       i += 1
     } else if arg.has_prefix("-c=") {
-      config_path = arg[3:].to_owned()
+      opts = { ..opts, config_path: arg[3:].to_owned() }
+      i += 1
+    } else if arg == "--content" {
+      match read_cli_value(args, i, "--content") {
+        Some(value) => {
+          opts = { ..opts, content_dir: Some(value) }
+          i += 2
+        }
+        None => {
+          opts = {
+            ..opts,
+            error_message: Some("--content requires a path parameter"),
+          }
+          i = args.length()
+        }
+      }
+    } else if arg.has_prefix("--content=") {
+      opts = { ..opts, content_dir: Some(arg[10:].to_owned()) }
+      i += 1
+    } else if arg == "--layouts" {
+      match read_cli_value(args, i, "--layouts") {
+        Some(value) => {
+          opts = { ..opts, layouts_dir: Some(value) }
+          i += 2
+        }
+        None => {
+          opts = {
+            ..opts,
+            error_message: Some("--layouts requires a path parameter"),
+          }
+          i = args.length()
+        }
+      }
+    } else if arg.has_prefix("--layouts=") {
+      opts = { ..opts, layouts_dir: Some(arg[10:].to_owned()) }
+      i += 1
+    } else if arg == "--public" {
+      match read_cli_value(args, i, "--public") {
+        Some(value) => {
+          opts = { ..opts, public_dir: Some(value) }
+          i += 2
+        }
+        None => {
+          opts = {
+            ..opts,
+            error_message: Some("--public requires a path parameter"),
+          }
+          i = args.length()
+        }
+      }
+    } else if arg.has_prefix("--public=") {
+      opts = { ..opts, public_dir: Some(arg[9:].to_owned()) }
+      i += 1
+    } else if arg == "--static" {
+      match read_cli_value(args, i, "--static") {
+        Some(value) => {
+          opts = { ..opts, static_dir: Some(value) }
+          i += 2
+        }
+        None => {
+          opts = {
+            ..opts,
+            error_message: Some("--static requires a path parameter"),
+          }
+          i = args.length()
+        }
+      }
+    } else if arg.has_prefix("--static=") {
+      opts = { ..opts, static_dir: Some(arg[9:].to_owned()) }
+      i += 1
+    } else if arg == "--base-url" {
+      match read_cli_value(args, i, "--base-url") {
+        Some(value) => {
+          opts = { ..opts, site_url: Some(value) }
+          i += 2
+        }
+        None => {
+          opts = {
+            ..opts,
+            error_message: Some("--base-url requires a URL parameter"),
+          }
+          i = args.length()
+        }
+      }
+    } else if arg.has_prefix("--base-url=") {
+      opts = { ..opts, site_url: Some(arg[11:].to_owned()) }
       i += 1
     } else {
-      i += 1
+      opts = { ..opts, error_message: Some("unknown argument: " + arg) }
+      i = args.length()
     }
+  }
+  opts
+}
+
+///|
+fn read_cli_value(args : Array[String], index : Int, _name : String) -> String? {
+  if index + 1 < args.length() {
+    Some(args[index + 1])
+  } else {
+    None
+  }
+}
+
+///|
+fn apply_cli_overrides(config : @ssg.Config, opts : CliOptions) -> @ssg.Config {
+  @ssg.Config::make(
+    config.site_title,
+    config.site_description,
+    opts.site_url.unwrap_or(config.site_url),
+    config.posts_per_page,
+    opts.content_dir.unwrap_or(config.content_dir),
+    opts.layouts_dir.unwrap_or(config.layouts_dir),
+    opts.public_dir.unwrap_or(config.public_dir),
+    opts.static_dir.unwrap_or(config.static_dir),
+  )
+}
+
+///|
+fn normalize_runtime_args(args : Array[String]) -> Array[String] {
+  if args.length() == 0 {
+    []
+  } else {
+    let first = args[0]
+    if first.has_suffix(".wasm") ||
+      first.has_suffix(".js") ||
+      first.has_suffix(".exe") {
+      let normalized = []
+      for i in 1..<args.length() {
+        normalized.push(args[i])
+      }
+      normalized
+    } else {
+      args
+    }
+  }
+}
+
+///|
+fn print_usage() -> Unit {
+  println("moon-ssg 0.3.1")
+  println("Usage: moon run src/main -- [options]")
+  println("")
+  println("Options:")
+  println("  -h, --help                 Show this help text")
+  println("  -V, --version              Show version")
+  println("  -d, --drafts               Include draft posts")
+  println("  -c, --config <path>        Read or create config JSON")
+  println("      --content <dir>        Override content directory")
+  println("      --layouts <dir>        Override layouts directory")
+  println("      --public <dir>         Override output directory")
+  println("      --static <dir>         Override static assets directory")
+  println("      --base-url <url>       Override site URL for RSS and sitemap")
+}
+
+///|
+fn main {
+  let args = normalize_runtime_args(@env.args())
+  let opts = parse_cli_args(args)
+
+  match opts.error_message {
+    Some(message) => {
+      println("Error: " + message)
+      print_usage()
+      return
+    }
+    None => ()
+  }
+
+  if opts.show_help {
+    print_usage()
+    return
+  }
+  if opts.show_version {
+    println("moon-ssg 0.3.1")
+    return
   }
 
   println("[moon-ssg] Starting static site generation...")
-  println("[moon-ssg] Using configuration: " + config_path)
+  println("[moon-ssg] Using configuration: " + opts.config_path)
 
   try {
     // 1. Read or generate configuration
-    let config : @ssg.Config = if !@fs.path_exists(config_path) {
+    let loaded_config : @ssg.Config = if !@fs.path_exists(opts.config_path) {
       let default_config = @ssg.Config::default()
       let json_val = default_config.to_json()
-      @fs.write_string_to_file(config_path, json_val.stringify())
-      println("[moon-ssg] Generated default configuration file: " + config_path)
+      @fs.write_string_to_file(opts.config_path, json_val.stringify())
+      println(
+        "[moon-ssg] Generated default configuration file: " + opts.config_path,
+      )
       default_config
     } else {
-      let config_str = @fs.read_file_to_string(config_path)
+      let config_str = @fs.read_file_to_string(opts.config_path)
       let json_val = @json.parse(config_str)
       let parsed_config : @ssg.Config = @json.from_json(json_val)
       parsed_config
     }
+    let config = apply_cli_overrides(loaded_config, opts)
 
     let content_dir = config.content_dir
     let layouts_dir = config.layouts_dir
@@ -336,8 +547,13 @@ fn main {
 
     // 5. Generate the site
     let pages = @ssg.generate_site(
-      sources, post_template, index_template, tag_template, category_template, config,
-      include_drafts,
+      sources,
+      post_template,
+      index_template,
+      tag_template,
+      category_template,
+      config,
+      opts.include_drafts,
     )
 
     // 6. Ensure public directory exists

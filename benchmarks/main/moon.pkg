@@ -1,0 +1,5 @@
+import {
+  "Myytsjj/moon-ssg/src/ssg",
+}
+
+pkgtype(kind: "executable")
