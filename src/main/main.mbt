@@ -578,7 +578,7 @@ fn main {
   } catch {
     err => {
       println("[moon-ssg] Error occurred during generation:")
-      println(@debug.to_repr(err).to_string())
+      println(err.to_string())
     }
   }
 }
