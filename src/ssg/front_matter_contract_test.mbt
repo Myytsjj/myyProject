@@ -232,3 +232,11 @@ test "front matter body starts after closing delimiter" {
   let (_, body) = parse_front_matter(source)
   assert_meta_text("body", body.trim().to_owned(), "# Heading\n\nBody")
 }
+
+///|
+test "front matter requires a line-delimited opening marker" {
+  let source = "---title: Not Metadata\nBody\n---\nKeep this text"
+  let (meta, body) = parse_front_matter(source)
+  assert_meta_text("title", meta.title, "Untitled")
+  assert_meta_text("body", body, source)
+}

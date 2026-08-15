@@ -1,0 +1,39 @@
+name: Publish Mooncake
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish to Mooncakes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Moon
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Verify package
+        run: |
+          moon version --all
+          moon update
+          moon fmt --check
+          moon check --target all
+          moon check --deny-warn
+          moon build
+          moon test --target all
+          moon test --deny-warn
+          moon info
+          git diff --exit-code
+
+      - name: Publish package
+        env:
+          MOONCAKES_MOONBIT_COMMUNITY_TOKEN: ${{ secrets.MOONCAKES_MOONBIT_COMMUNITY_TOKEN }}
+        run: moon publish

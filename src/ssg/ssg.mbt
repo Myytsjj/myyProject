@@ -95,16 +95,24 @@ pub fn parse_front_matter(source : String) -> (BlogPostMetadata, String) {
   let mut categories : Array[String] = []
   let mut body = source
 
-  if source.has_prefix("---") {
-    // find second --- starting from index 3
-    let mut second_fm_idx = -1
-    for i = 3; i < source.length() - 2; i = i + 1 {
-      if source[i] == '-' && source[i + 1] == '-' && source[i + 2] == '-' {
-        second_fm_idx = i
-        break
-      }
+  // Only a marker on its own line can open or close front matter.
+  let mut first_line_is_marker = false
+  let mut second_fm_idx = -1
+  let mut line_start = 0
+  let mut line_index = 0
+  for line in source.split("\n") {
+    if line_index == 0 {
+      first_line_is_marker = line.trim() == "---"
+    } else if first_line_is_marker &&
+      second_fm_idx == -1 &&
+      line.trim() == "---" {
+      second_fm_idx = line_start
     }
+    line_start = line_start + line.length() + 1
+    line_index = line_index + 1
+  }
 
+  if first_line_is_marker {
     if second_fm_idx != -1 {
       let fm_block = source[3:second_fm_idx]
 

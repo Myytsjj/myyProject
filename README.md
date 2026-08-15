@@ -82,19 +82,31 @@ moon run src/main -- --base-url https://example.com/blog
 The pure generator API lives in `src/ssg`:
 
 ```moonbit
-let config = @ssg.Config::make(
-  "Example Site", "Description", "https://example.com", 10,
-  "content", "layouts", "public", "static",
-)
-let pages = @ssg.generate_site(
-  [("hello moonbit.md", markdown_source)],
-  post_layout,
-  index_layout,
-  tag_layout,
-  category_layout,
-  config,
-  false,
-)
+import {
+  "Myytsjj/moon-ssg/src/ssg"
+}
+
+fn main {
+  let markdown_source = "# Hello MoonBit\n\nThis is a generated page."
+  let post_layout = "<article><h1>{{title}}</h1>{{content}}</article>"
+  let index_layout = "<main>{{posts}}{{pagination}}</main>"
+  let tag_layout = "<section><h1>{{tag}}</h1>{{posts}}</section>"
+  let category_layout = "<section><h1>{{category}}</h1>{{posts}}</section>"
+  let config = @ssg.Config::make(
+    "Example Site", "Description", "https://example.com", 10,
+    "content", "layouts", "public", "static",
+  )
+  let pages = @ssg.generate_site(
+    [("hello moonbit.md", markdown_source)],
+    post_layout,
+    index_layout,
+    tag_layout,
+    category_layout,
+    config,
+    false,
+  )
+  println("generated pages: " + pages.length().to_string())
+}
 ```
 
 The Markdown package can also be used directly:
@@ -159,6 +171,8 @@ GitHub Actions runs on Linux, macOS, and Windows:
 - `git diff --exit-code`
 
 Publishing is intentionally not part of pull-request CI because it requires a Mooncakes credential.
+The repository also contains a manual `workflow_dispatch` publishing workflow. Configure
+`MOONCAKES_MOONBIT_COMMUNITY_TOKEN` as a GitHub Actions secret before using it.
 
 ## Acceptance Self-Check
 
